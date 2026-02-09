@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Great Again - Engine Test</title>
+    <style>
+        body { margin: 0; background: #000; overflow: hidden; font-family: 'Arial', sans-serif; }
+        #game-wrapper { position: relative; width: 100vw; height: 100vh; max-width: 450px; margin: 0 auto; background: #111; border: 3px solid #ffd700; box-sizing: border-box; }
+        canvas { width: 100%; height: 100%; display: block; }
+        
+        /* UI Elements */
+        .dashboard { position: absolute; bottom: 0; width: 100%; height: 25%; background: rgba(0,0,0,0.9); border-top: 2px solid #ffd700; display: flex; flex-direction: column; align-items: center; justify-content: space-around; padding: 10px 0; }
+        .stats-row { display: flex; justify-content: space-around; width: 90%; }
+        .stat-box { text-align: center; color: #ffd700; }
+        .stat-label { font-size: 12px; text-transform: uppercase; color: #fff; }
+        .stat-value { font-size: 20px; font-weight: bold; }
+        
+        button#spinBtn { width: 80%; padding: 15px; background: linear-gradient(#ff0000, #990000); color: #fff; border: none; border-radius: 10px; font-size: 22px; font-weight: bold; cursor: pointer; text-shadow: 2px 2px #000; box-shadow: 0 5px #660000; }
+        button#spinBtn:active { transform: translateY(4px); box-shadow: 0 1px #660000; }
+        
+        #speech { position: absolute; top: 10%; right: 5%; background: white; padding: 10px; border-radius: 15px; display: none; font-weight: bold; font-size: 14px; border: 2px solid #000; z-index: 100; }
+    </style>
+</head>
+<body>
+
+<div id="game-wrapper">
+    <div id="speech">MAGA!</div>
+    <canvas id="slotCanvas"></canvas>
+    
+    <div class="dashboard">
+        <div class="stats-row">
+            <div class="stat-box"><div class="stat-label">Balance</div><div id="balText" class="stat-value">$1,000</div></div>
+            <div class="stat-box"><div class="stat-label">Last Win</div><div id="winText" class="stat-value">$0</div></div>
+        </div>
+        <button id="spinBtn">MAKE IT SPIN!</button>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('slotCanvas');
+const ctx = canvas.getContext('2d');
+const spinBtn = document.getElementById('spinBtn');
+const balDisplay = document.getElementById('balText');
+const winDisplay = document.getElementById('winText');
+const speech = document.getElementById('speech');
+
+// Config
+const COLS = 6; const ROWS = 5;
+const syms = ['💎', '💰', '🧢', '🏢', '🏅', '👔', '🍎']; // 🏅 = Scatter
+let grid = [];
+let balance = 1000;
+let spinning = false;
+
+function init() {
+    grid = Array.from({length: ROWS}, () => Array.from({length: COLS}, () => syms[Math.floor(Math.random()*syms.length)]));
+    render();
+}
+
+function drawTrump() {
+    // Funny Cartoon Trump Rendering
+    ctx.save();
+    ctx.translate(canvas.width * 0.75, canvas.height * 0.15);
+    // Face
+    ctx.fillStyle = '#ffcc99';
+    ctx.beginPath(); ctx.arc(0, 0, 35, 0, Math.PI*2); ctx.fill();
+    // Golden Hair (The most important part)
+    ctx.fillStyle = '#ffd700';
+    ctx.beginPath(); ctx.moveTo(-40, -25); ctx.quadraticCurveTo(0, -60, 45, -20); ctx.lineTo(20, -5); ctx.fill();
+    // Eyes & Mouth
+    ctx.fillStyle = '#000'; ctx.fillRect(-15, -10, 8, 4); ctx.fillRect(10, -10, 8, 4);
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 15, 10, 0, Math.PI); ctx.stroke();
+    ctx.restore();
+}
+
+function render() {
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = canvas.parentElement.clientHeight;
+    
+    // Background
+    ctx.fillStyle = '#1a2a44';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    drawTrump();
+    
+    // Grid Setup
+    const padding = 10;
+    const gH = canvas.height * 0.55;
+    const slotY = canvas.height * 0.28;
+    const cW = (canvas.width - padding*2) / COLS;
+    const cH = gH / ROWS;
+
+    for(let r=0; r<ROWS; r++) {
+        for(let c=0; c<COLS; c++) {
+            ctx.fillStyle = 'rgba(255, 215, 0, 0.1)';
+            ctx.fillRect(padding + c*cW, slotY + r*cH, cW-2, cH-2);
+            ctx.font = `${cH*0.6}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(grid[r][c], padding + c*cW + cW/2, slotY + r*cH + cH/2);
+        }
+    }
+}
+
+function triggerSpeech(txt) {
+    speech.innerText = txt;
+    speech.style.display = 'block';
+    setTimeout(() => speech.style.display = 'none', 2000);
+}
+
+function spin() {
+    if(spinning || balance < 10) return;
+    spinning = true;
+    balance -= 10;
+    balDisplay.innerText = `$${balance}`;
+    
+    let count = 0;
+    const loop = setInterval(() => {
+        init();
+        count++;
+        if(count > 12) {
+            clearInterval(loop);
+            checkWin();
+        }
+    }, 80);
+}
+
+function checkWin() {
+    const flat = grid.flat();
+    const counts = {};
+    flat.forEach(s => counts[s] = (counts[s] || 0) + 1);
+    
+    let win = 0;
+    let winnerSym = '';
+    
+    for(let s in counts) {
+        if(counts[s] >= 8) {
+            win = 10 * counts[s];
+            winnerSym = s;
+        }
+    }
+
+    if(win > 0) {
+        balance += win;
+        winDisplay.innerText = `$${win}`;
+        balDisplay.innerText = `$${balance}`;
+        triggerSpeech("HUGE WIN! BELIEVE ME!");
+    } else {
+        if(counts['🏅'] === 2) triggerSpeech("RIGGED! STOP THE COUNT!");
+        else if(Math.random() > 0.7) triggerSpeech("FAKE NEWS! SPIN AGAIN!");
+    }
+    
+    spinning = false;
+    render();
+}
+
+window.addEventListener('resize', render);
+spinBtn.addEventListener('click', spin);
+init();
+
+</script>
+</body>
+</html>
